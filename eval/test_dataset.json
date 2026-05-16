@@ -1,0 +1,265 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "description": "Evaluation dataset for CLM AI — retrieval, generation, and end-to-end tests",
+    "created": "2026-04-11"
+  },
+
+  "retrieval_tests": [
+    {
+      "id": "ret-01",
+      "query": "confidentiality obligations in NDA",
+      "doc_type": "NDA",
+      "expected_keywords": ["confidential", "non-disclosure", "receiving party", "disclose"],
+      "description": "Should retrieve NDA confidentiality clause text"
+    },
+    {
+      "id": "ret-02",
+      "query": "service uptime and availability targets",
+      "doc_type": "SLA",
+      "expected_keywords": ["uptime", "availability", "maintenance", "downtime"],
+      "description": "Should retrieve SLA availability sections"
+    },
+    {
+      "id": "ret-03",
+      "query": "termination and cancellation rights",
+      "doc_type": null,
+      "expected_keywords": ["terminat", "cancel", "notice", "breach"],
+      "description": "Should retrieve termination clauses across contract types"
+    },
+    {
+      "id": "ret-04",
+      "query": "payment terms and invoicing schedule",
+      "doc_type": null,
+      "expected_keywords": ["payment", "invoice", "fee", "amount"],
+      "description": "Should retrieve payment-related clauses"
+    },
+    {
+      "id": "ret-05",
+      "query": "limitation of liability and indemnification",
+      "doc_type": null,
+      "expected_keywords": ["liability", "indemnif", "damages", "limit"],
+      "description": "Should retrieve liability clauses"
+    },
+    {
+      "id": "ret-06",
+      "query": "intellectual property ownership rights",
+      "doc_type": null,
+      "expected_keywords": ["intellectual property", "ownership", "license", "rights"],
+      "description": "Should retrieve IP clauses"
+    },
+    {
+      "id": "ret-07",
+      "query": "service credits and penalties for SLA breach",
+      "doc_type": "SLA",
+      "expected_keywords": ["credit", "penalt", "breach", "uptime"],
+      "description": "Should retrieve SLA credit/penalty provisions"
+    },
+    {
+      "id": "ret-08",
+      "query": "scope of work and deliverables",
+      "doc_type": "SOW",
+      "expected_keywords": ["scope", "deliverable", "milestone", "work"],
+      "description": "Should retrieve SOW scope definitions"
+    },
+    {
+      "id": "ret-09",
+      "query": "governing law and jurisdiction",
+      "doc_type": null,
+      "expected_keywords": ["governing law", "jurisdiction", "dispute"],
+      "description": "Should retrieve governing law clauses"
+    },
+    {
+      "id": "ret-10",
+      "query": "force majeure and extraordinary events",
+      "doc_type": null,
+      "expected_keywords": ["force majeure", "event", "beyond control"],
+      "description": "Should retrieve force majeure clauses"
+    }
+  ],
+
+  "chat_tests": [
+    {
+      "id": "chat-01",
+      "question": "What does a limitation of liability clause mean?",
+      "expected_topics": ["caps damages", "types of damages excluded", "financial exposure", "risk allocation"],
+      "must_not_contain": [],
+      "description": "Basic legal concept explanation"
+    },
+    {
+      "id": "chat-02",
+      "question": "What are the key differences between an NDA and an MSA?",
+      "expected_topics": ["confidentiality", "services", "scope", "purpose"],
+      "must_not_contain": [],
+      "description": "Comparison of contract types"
+    },
+    {
+      "id": "chat-03",
+      "question": "What should I look for in an SLA before signing?",
+      "expected_topics": ["uptime", "credits", "support", "penalties", "response time"],
+      "must_not_contain": [],
+      "description": "Practical advice question"
+    },
+    {
+      "id": "chat-04",
+      "question": "Explain the risks of a non-compete clause",
+      "expected_topics": ["restrict", "employment", "competition", "enforceab"],
+      "must_not_contain": [],
+      "description": "Risk analysis question"
+    },
+    {
+      "id": "chat-05",
+      "question": "What is a force majeure clause and when does it apply?",
+      "expected_topics": ["unforeseeable", "event", "beyond control", "performance excused"],
+      "must_not_contain": [],
+      "description": "Legal concept explanation"
+    }
+  ],
+
+  "analyse_tests": [
+    {
+      "id": "analyse-01",
+      "question": "What does the limitation of liability clause mean?",
+      "doc_type": null,
+      "document_text": null,
+      "expect_fields": ["analysis", "clauses_found", "sources"],
+      "description": "Basic clause analysis from KB"
+    },
+    {
+      "id": "analyse-02",
+      "question": "What are the confidentiality obligations?",
+      "doc_type": "nda",
+      "document_text": null,
+      "expect_fields": ["analysis", "clauses_found", "sources"],
+      "description": "NDA-filtered clause analysis"
+    },
+    {
+      "id": "analyse-03",
+      "question": "Summarize the termination clause",
+      "doc_type": null,
+      "document_text": "TERMINATION: Either party may terminate this agreement upon 30 days written notice. In the event of material breach, the non-breaching party may terminate immediately upon written notice. Upon termination, all confidential information must be returned within 15 business days.",
+      "expect_fields": ["analysis"],
+      "expected_topics": ["30 days", "breach", "return", "notice"],
+      "description": "Inline document analysis"
+    },
+    {
+      "id": "analyse-04",
+      "question": "What are the risks in this indemnification clause?",
+      "doc_type": null,
+      "document_text": "INDEMNIFICATION: The Service Provider shall indemnify, defend, and hold harmless the Client from any and all claims, damages, losses, costs, and expenses (including reasonable attorneys' fees) arising from or related to the Service Provider's negligence, willful misconduct, or breach of this Agreement. This indemnification obligation shall survive the termination or expiration of this Agreement.",
+      "expect_fields": ["analysis"],
+      "expected_topics": ["risk", "unlimited", "surviv", "broad"],
+      "description": "Risk identification in indemnification clause"
+    }
+  ],
+
+  "generate_tests": [
+    {
+      "id": "gen-01",
+      "doc_type": "nda",
+      "fields": {
+        "party_a": "Acme Corp",
+        "party_b": "Beta Ltd",
+        "effective_date": "2024-01-01"
+      },
+      "expected_in_output": ["Acme Corp", "Beta Ltd", "2024-01-01", "CONFIDENTIAL", "Non-Disclosure"],
+      "description": "NDA generation with basic fields"
+    },
+    {
+      "id": "gen-02",
+      "doc_type": "sla",
+      "fields": {
+        "service_provider": "CloudTech Inc",
+        "client": "RetailCo",
+        "uptime_target": "99.9"
+      },
+      "expected_in_output": ["CloudTech Inc", "RetailCo", "99.9", "SERVICE LEVEL"],
+      "description": "SLA generation with provider details"
+    },
+    {
+      "id": "gen-03",
+      "doc_type": "sow",
+      "fields": {
+        "client_name": "Test Corp",
+        "project_name": "AI Integration Project"
+      },
+      "expected_in_output": ["Test Corp", "AI Integration Project", "STATEMENT OF WORK"],
+      "description": "SOW generation"
+    }
+  ],
+
+  "analyze_text_tests": [
+    {
+      "id": "atxt-01",
+      "text": "This Service Level Agreement is entered into between CloudHost Inc (Service Provider) and DataCorp (Client). Service Provider guarantees 99.95% monthly uptime. If uptime falls below 99.9%, Client receives a 10% service credit. If uptime falls below 99.0%, Client receives a 25% service credit. Maximum monthly credit shall not exceed 30% of monthly fees. Support is available 24/7 via phone, email, and chat. P1 incidents must be resolved within 1 hour.",
+      "expect_fields": ["summary", "risk_score", "risk_level", "recommendations"],
+      "risk_level_valid": ["low", "medium", "high"],
+      "description": "Structured analysis of SLA text"
+    },
+    {
+      "id": "atxt-02",
+      "text": "AGREEMENT: Party A agrees to provide all services requested by Party B at Party B's sole discretion. Party A assumes all liability for any damages regardless of fault. Party A waives all rights to dispute resolution. This agreement is perpetual and irrevocable.",
+      "expect_fields": ["summary", "risk_score", "risk_level", "risk_factors"],
+      "expected_min_risk_score": 60,
+      "description": "High-risk contract detection — one-sided terms"
+    }
+  ],
+
+  "conflict_detection_tests": [
+    {
+      "id": "conflict-01",
+      "contracts": [
+        {
+          "title": "Vendor Agreement A",
+          "text": "EXCLUSIVITY: Vendor shall be the sole and exclusive provider of cloud infrastructure services to Client. Client shall not engage any other vendor for similar services during the term of this agreement. TERM: This agreement shall remain in effect for 3 years from the effective date."
+        },
+        {
+          "title": "Vendor Agreement B",
+          "text": "SERVICES: Vendor B shall provide cloud infrastructure and hosting services to Client on a non-exclusive basis. Client retains the right to engage multiple vendors for similar services. TERM: This agreement is effective for 2 years."
+        }
+      ],
+      "expect_conflicts": true,
+      "expected_topics": ["exclusiv", "multiple vendors", "conflict"],
+      "description": "Exclusivity conflict between two vendor agreements"
+    },
+    {
+      "id": "conflict-02",
+      "contracts": [
+        {
+          "title": "Contract X",
+          "text": "GOVERNING LAW: This agreement shall be governed by the laws of the State of New York. Any disputes shall be resolved in the courts of New York County."
+        },
+        {
+          "title": "Contract Y",
+          "text": "GOVERNING LAW: This agreement shall be governed by the laws of the State of California. All disputes shall be submitted to binding arbitration in San Francisco."
+        }
+      ],
+      "expect_conflicts": true,
+      "expected_topics": ["governing law", "jurisdiction", "New York", "California"],
+      "description": "Conflicting governing law and dispute resolution"
+    }
+  ],
+
+  "session_continuity_tests": [
+    {
+      "id": "session-01",
+      "turns": [
+        {
+          "question": "What is an NDA?",
+          "expected_topics": ["non-disclosure", "confidential", "agreement"]
+        },
+        {
+          "question": "What are the typical clauses in one?",
+          "expected_topics": ["confidential", "obligation", "term", "exclusion"],
+          "context_dependency": "Should understand 'one' refers to NDA from previous turn"
+        },
+        {
+          "question": "How long do they usually last?",
+          "expected_topics": ["year", "term", "duration"],
+          "context_dependency": "Should understand 'they' refers to NDAs"
+        }
+      ],
+      "description": "Multi-turn conversation about NDAs — tests session memory"
+    }
+  ]
+}
