@@ -1,6 +1,20 @@
-# CLAUSE — AI-Powered Contract Lifecycle Management
+ # Clause — AI-Powered Contract Lifecycle Management
 
-CLAUSE is a full-stack Contract Lifecycle Management (CLM) platform with AI-assisted contract drafting, approval workflows, document editing, and analytics.
+Clause is a full-stack Contract Lifecycle Management (CLM) platform with AI-assisted drafting, multi-stage approval workflows, in-browser document editing, risk analysis, and an admin dashboard — all deployable with a single `docker compose up`.
+
+---
+
+## Table of Contents
+
+1. Architecture (#architecture)
+2. Tech Stack (#tech-stack)
+3. Prerequisites (#prerequisites)
+4. Setup Guide (#setup-guide)
+5. First Admin User (#first-admin-user)
+6. Seeding Sample Data (#seeding-sample-data)
+7. Common Commands (#common-commands)
+8. Environment Variables Reference (#environment-variables-reference)
+9. Troubleshooting (#troubleshooting)
 
 ---
 
@@ -8,12 +22,12 @@ CLAUSE is a full-stack Contract Lifecycle Management (CLM) platform with AI-assi
 
 ```
 clause-clm/
-├── frontend/        React 19 + TypeScript + Tailwind (Vite)
-├── backend/         FastAPI + PyMongo (Python 3.11)
-├── agents/          AI microservice — Gemini + Claude + Ollama
-├── ingestion/       Knowledge base ingestion worker (Elasticsearch)
-├── nginx/           Reverse proxy + SSL termination
-├── eval/            Evaluation suite for AI quality
+├── frontend/         React 19 + TypeScript + Tailwind CSS (Vite)
+├── backend/          FastAPI + PyMongo (Python 3.11)
+├── agents/           AI microservice — Gemini · Claude · Ollama
+├── ingestion/        Knowledge-base ingestion worker (Elasticsearch)
+├── nginx/            Reverse proxy + SSL termination
+├── eval/             AI evaluation / quality suite
 └── docker-compose.yml
 ```
 
@@ -24,47 +38,48 @@ Browser → nginx (443) → FastAPI backend (8000) → MongoDB
                      ↘ Collabora/WOPI (9980 internal)
 ```
 
+All internal services communicate on a private Docker network. Only nginx is exposed to the host.
+
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | React 19, Vite, Tailwind CSS, shadcn/ui, Clerk Auth |
-| Backend | FastAPI, PyMongo, Pydantic v2, Python 3.11 |
-| AI Agents | Gemini 2.5, Claude Sonnet, Ollama (local GPU) |
-| Database | MongoDB 7 |
-| Search | Elasticsearch 8.12 (vector search, 3072-dim) |
-| Queue | Redis + RQ |
-| Document Editing | Collabora Online (LibreOffice via WOPI) |
-| Reverse Proxy | nginx 1.27 (SSL, rate limiting, gzip) |
-| Auth | Clerk (JWT) |
-| Containers | Docker Compose |
+|        Layer      |                            Technology                               |
+|-------------------|---------------------------------------------------------------------|
+| Frontend          | React 19, Vite, TypeScript, Tailwind CSS, shadcn/ui, Clerk Auth     |
+| Backend           | FastAPI, PyMongo, Pydantic v2, Python 3.11                          |
+| AI Agents         | Gemini 2.5, Claude Sonnet (Anthropic), Ollama (optional local GPU)  |
+| Database          | MongoDB 7                                                           |
+| Search / RAG      | Elasticsearch 8.12 (vector search, 3072-dim embeddings)             |
+| Task Queue        | Redis + RQ                                                          |
+| Document Editor   | Collabora Online (LibreOffice-in-browser via WOPI)                  |
+| Reverse Proxy     | nginx 1.27 (SSL, rate limiting, gzip)                               |
+| Authentication    | Clerk (JWT)                                                         |
+| Containers        | Docker Compose                                                      |
 
 ---
 
 ## Prerequisites
 
-Before you begin, make sure you have the following installed:
+**Software:**
+- Windows with WSL2 (Ubuntu distro) — or native Linux/Mac
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (with WSL2 backend on Windows) or Docker Engine on Linux/Mac
+- [Node.js 20+](https://nodejs.org/) and npm (for the one-time frontend build)
+- `openssl` (for generating local SSL certificates)
+- `git`
 
-- **WSL2** (Windows Subsystem for Linux) with Ubuntu 22.04+
-- **Docker Desktop** with WSL2 backend enabled, or Docker Engine inside WSL
-- **Node.js 20+** and **npm** (for building the frontend)
-- **Git**
-- **openssl** (for generating SSL certificates)
-
-API accounts needed:
-
-- [Clerk](https://clerk.com) — authentication (free tier works)
-- [Google AI Studio](https://aistudio.google.com) — Gemini API key
-- [Anthropic](https://console.anthropic.com) — Claude API key
-- Google Cloud project with Calendar API + Gmail SMTP (optional — for calendar/email features)
-
+**API accounts you will need:**
+|                     Service                            |       Purpose       |      Free tier?    |
+|--------------------------------------------------------|---------------------|--------------------|
+| [Clerk](https://clerk.com)                             | User authentication | Yes                |
+| [Google AI Studio](https://aistudio.google.com/apikey) | Gemini API key      | Yes (rate-limited) |
+| [Anthropic Console](https://console.anthropic.com)     | Claude API key      | Pay-as-you-go      |
+| Google Cloud (optional) | Calendar API + Gmail OAuth   | Free quota          |                    |
 ---
 
 ## Setup Guide
 
-### Step 1 — Clone the Repository
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/YourUsername/clause-clm.git
@@ -72,45 +87,123 @@ cd clause-clm
 ```
 
 ---
+### 2 .Open WSL2 Terminal (Windows only)
 
-### Step 2 — Fix docker-compose.yml Paths
-
-The `docker-compose.yml` references relative paths that match the repo structure.  
-Open `docker-compose.yml` and update the three `build.context` lines to match the repo:
-
-| Service | Original context | Change to |
-|---|---|---|
-| nginx | `../cluasue` | `.` |
-| backend | `../cluasue/Backend` | `./backend` |
-| worker | `./injest` | `./ingestion` |
-| agents | `./agents` | `./agents` *(no change)* |
-
-Also update the secrets section at the bottom:
-
-```yaml
-secrets:
-  gemini_api_key:
-    file: ./ingestion/secrets/gemini_api_key.txt
-  elastic_password:
-    file: ./ingestion/secrets/elastic_password.txt
-  anthropic_api_key:
-    file: ./ingestion/secrets/anthropic_api_key.txt
+All commands must run inside WSL2 Ubuntu, not PowerShell or CMD.
+Open PowerShell and run:
+```bash
+wsl -d Ubuntu
 ```
 
-Also update the nginx Dockerfile (`nginx/Dockerfile`) — change:
-```dockerfile
-COPY Front/dist /var/www/clause
+### 3. Install Node.js (if not installed)
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc
+nvm install 20
+node --version   # should show v20.x.x
 ```
-to:
-```dockerfile
-COPY frontend/dist /var/www/clause
+
+
+---
+### 4. Create the Environment File
+
+Copy the template and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env`. The required fields are:
+
+DATABASE_NAME=Clause
+
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_key_here
+CLERK_SECRET_KEY=
+CLERK_ISSUER=https://your-domain.clerk.accounts.dev
+
+VITE_API_BASE_URL=https://localhost
+
+SECRET_KEY=your_generated_secret_here
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=https://localhost/api/calendar/callback
+
+SMTP_EMAIL=your@gmail.com
+SMTP_PASSWORD=your_app_password
+
+ELASTIC_PASSWORD=your_elastic_password_here
+INDEX_NAME=clm_knowledge_base
+
+GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL_LITE=gemini-2.5-flash
+GEMINI_MODEL_HEAVY=gemini-2.5-flash
+GEMINI_RPM=15
+GEMINI_RPD=500
+GEMINI_MODEL_LIMITS=gemini-2.5-pro:0:0,gemini-2.5-flash:5:20
+
+ANTHROPIC_MODEL=claude-sonnet-4-6
+ANTHROPIC_ENABLED=true
+
+OLLAMA_MODEL=qwen2.5:7b-instruct
+LOCAL_MODEL_ENABLED=false
+
+CORS_ORIGINS=https://localhost,http://localhost
+
+Generate your SECRET_KEY with
+
+```bash
+openssl rand -hex 32
+```
+---
+
+### 5. Frontend .env
+
+Create a separate .env inside the frontend/ folder
+
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_key_here
+VITE_API_BASE_URL=https://localhost
+
+---
+
+### 6. Create the Secret Files
+
+Docker Compose reads AI API keys from plain text files (not environment variables) to keep them out of the image layers.
+
+```bash
+mkdir -p ingestion/secrets
+
+# Gemini API key — from https://aistudio.google.com/apikey
+echo "your-gemini-api-key" > ingestion/secrets/gemini_api_key.txt
+
+# Must match ELASTIC_PASSWORD in .env
+echo "your_elastic_password_here" > ingestion/secrets/elastic_password.txt
+
+# Anthropic API key — from https://console.anthropic.com
+echo "your-anthropic-api-key" > ingestion/secrets/anthropic_api_key.txt
+```
+---
+
+### 7. Generate SSL Certificates
+
+nginx requires TLS certificates. For local development, generate a self-signed certificate:
+
+```bash
+mkdir -p nginx/certs
+
+openssl req -x509 -newkey rsa:4096 \
+  -keyout nginx/certs/server.key \
+  -out  nginx/certs/server.crt \
+  -days 365 -nodes \
+  -subj "/CN=localhost"
 ```
 
 ---
 
-### Step 3 — Build the Frontend
 
-The nginx container serves the pre-built React app, so you must build it first.
+### 8. Build the Frontend
+
+The nginx container serves the pre-built React app, so you must build it once before running Docker.
 
 ```bash
 cd frontend
@@ -119,127 +212,77 @@ npm run build
 cd ..
 ```
 
-This creates a `frontend/dist/` folder that nginx copies during its Docker build.
+This creates `frontend/dist/` which is copied into the nginx image at build time.
+
 
 ---
 
-### Step 4 — Create the Environment File
 
-Create a `.env` file in the project root (same folder as `docker-compose.yml`):
+### 9. Fix Elasticsearch Memory
 
-```env
-# ── Database ──────────────────────────────────────────────────────────
-DATABASE_NAME=clause_db
-
-# ── Clerk Authentication ───────────────────────────────────────────────
-CLERK_SECRET_KEY=sk_live_xxxxxxxxxxxxxxxxxxxx
-CLERK_ISSUER=https://your-clerk-domain.clerk.accounts.dev
-VITE_CLERK_PUBLISHABLE_KEY=pk_live_xxxxxxxxxxxxxxxxxxxx
-
-# ── Backend ────────────────────────────────────────────────────────────
-SECRET_KEY=any-long-random-string-here
-VITE_API_BASE_URL=https://localhost
-
-# ── Google OAuth (Calendar + Gmail) ───────────────────────────────────
-GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_REDIRECT_URI=https://localhost/api/calendar/oauth2callback
-
-# ── SMTP Email (Gmail) ─────────────────────────────────────────────────
-SMTP_EMAIL=your-gmail@gmail.com
-SMTP_PASSWORD=your-gmail-app-password
-
-# ── Elasticsearch ──────────────────────────────────────────────────────
-ELASTIC_PASSWORD=your_elastic_password_here
-INDEX_NAME=clm_knowledge_base
-
-# ── AI Agents — Gemini ────────────────────────────────────────────────
-GEMINI_MODEL=gemini-2.5-flash-preview-05-20
-GEMINI_MODEL_LITE=gemini-2.5-flash-lite-preview-06-17
-GEMINI_MODEL_HEAVY=gemini-2.5-pro-preview-06-05
-GEMINI_RPM=15
-GEMINI_RPD=1500
-CORS_ORIGINS=https://localhost
-
-# ── AI Agents — Anthropic ─────────────────────────────────────────────
-ANTHROPIC_MODEL=claude-sonnet-4-6
-ANTHROPIC_ENABLED=true
-
-# ── AI Agents — Ollama (local GPU) ────────────────────────────────────
-OLLAMA_MODEL=llama3.2
-LOCAL_MODEL_ENABLED=false
-
-# ── Collabora Online ───────────────────────────────────────────────────
-COLLABORA_ADMIN_PASSWORD=changeme
-```
-
-> **Where to find these values:**
-> - `CLERK_SECRET_KEY` / `CLERK_ISSUER` / `VITE_CLERK_PUBLISHABLE_KEY` → Clerk Dashboard → API Keys
-> - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` → Google Cloud Console → APIs & Services → Credentials
-> - `SMTP_PASSWORD` → Google Account → Security → App Passwords (requires 2FA enabled)
-> - `SECRET_KEY` → generate with: `openssl rand -hex 32`
-> - `ELASTIC_PASSWORD` → set this to any strong password you choose
-
----
-
-### Step 5 — Create the Secrets Files
-
-The Docker Compose secrets mechanism reads API keys from plain text files.  
-Create the secrets folder and files:
+This resets every time WSL2 restarts — run it each time before starting the app.
 
 ```bash
-mkdir -p ingestion/secrets
+sudo sysctl -w vm.max_map_count=262144
+```
+To make it permanent
 
-# Gemini API key (from Google AI Studio)
-echo "your-gemini-api-key-here" > ingestion/secrets/gemini_api_key.txt
-
-# Must match ELASTIC_PASSWORD in your .env
-echo "your_elastic_password_here" > ingestion/secrets/elastic_password.txt
-
-# Anthropic API key (from console.anthropic.com)
-echo "your-anthropic-api-key-here" > ingestion/secrets/anthropic_api_key.txt
+```bash
+echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
 ```
 
-> These files must **never** be committed to git. They are already listed in `.gitignore`.
+
+### 10. Fix Docker DNS (if images fail to pull)
+
+Open Docker Desktop → Settings → Docker Engine and update the JSON
+
+```json
+{
+  "builder": {
+    "gc": {
+      "defaultKeepStorage": "20GB",
+      "enabled": true
+    }
+  },
+  "experimental": false,
+  "dns": ["8.8.8.8", "8.8.4.4"]
+}
+```
+
+Click Apply & Restart. Also fix DNS inside WSL2
+
+```bash
+sudo nano /etc/resolv.conf
+```
+
+Replace contents with
+
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+
 
 ---
 
-### Step 6 — Generate SSL Certificates
 
-nginx requires SSL certificates. For local deployment, generate self-signed ones:
 
-```bash
-mkdir -p nginx/certs
-
-openssl req -x509 -newkey rsa:4096 \
-  -keyout nginx/certs/server.key \
-  -out nginx/certs/server.crt \
-  -days 365 -nodes \
-  -subj "/CN=localhost"
-```
-
-For a production server with a real domain, use [Let's Encrypt / Certbot](https://certbot.eff.org) instead and place `fullchain.pem` → `server.crt` and `privkey.pem` → `server.key`.
-
----
-
-### Step 7 — Build and Start the Application
+### 11. Build and Start
 
 ```bash
-# Build all Docker images (takes 5–10 minutes first time)
+# Build all Docker images (5–10 minutes on first run)
 docker compose build
 
 # Start all services in the background
 docker compose up -d
 
-# Watch the logs to confirm everything started cleanly
+# Watch logs to confirm everything started
 docker compose logs -f
 ```
 
-Expected healthy services after ~2 minutes:
+**Expected healthy services after ~2 minutes:**
 
 ```
 ✔ mongo          healthy
-✔ redis          healthy
+✔ redis_cache    healthy
 ✔ elasticsearch  healthy
 ✔ ollama         healthy
 ✔ clm_backend    healthy
@@ -249,112 +292,119 @@ Expected healthy services after ~2 minutes:
 ✔ clm_nginx      running
 ```
 
+**Access the app:**
+
+|             URL              | Description      |
+|------------------------------|------------------|
+| `https://localhost`          | Main application |
+
+> Your browser will warn about the self-signed certificate. Click **Advanced → Proceed to localhost**.
+
 ---
 
-## Accessing the Application
+## First Admin User
 
-| URL | What it opens |
-|---|---|
-| `https://localhost` | Main application (accept the self-signed cert warning) |
-| `https://localhost/api/docs` | Backend API docs (Swagger UI) |
+After signing up through the app, promote your account to admin via MongoDB:
 
-> Your browser will warn about the self-signed certificate. Click **Advanced → Proceed to localhost** to continue.
+```bash
+docker exec -it mongo mongosh
+
+use Clause
+db.users.updateOne(
+  { email: "your-email@example.com" },
+  { $set: { role: "admin" } }
+)
+exit
+```
+
+Then **hard-refresh** your browser (Ctrl+Shift+R). The admin panel will appear in the sidebar under **Admin Panel**, and the **Admin / Contracts** toggle will appear in the top bar.
+
+> **Roles available:** `admin`, `manager`, `user`, `viewer`
+
+---
+
+## Seeding Sample Data
+
+The `seed.py` script populates the database with sample users, contracts, workflows, approvals, and templates — useful for demos or development.
+
+> **Warning:** Running the full seed script **clears all existing data** first.
+
+```bash
+docker exec clm_backend python seed.py
+```
+
+To seed only the premade contract templates without clearing other data:
+
+```bash
+docker exec -it mongo mongosh Clause --eval "
+db.templates.insertMany([
+  { name: 'Standard NDA', contract_type: 'nda', description: 'Non-disclosure agreement.', is_active: true, version: 1, created_at: new Date(), updated_at: new Date() },
+  { name: 'SaaS Service Agreement', contract_type: 'service_agreement', description: 'SaaS subscription agreement.', is_active: true, version: 1, created_at: new Date(), updated_at: new Date() },
+  { name: 'Employment Contract', contract_type: 'employment', description: 'Full-time employment agreement.', is_active: true, version: 1, created_at: new Date(), updated_at: new Date() },
+  { name: 'Vendor Agreement', contract_type: 'vendor', description: 'Vendor/supplier agreement.', is_active: true, version: 1, created_at: new Date(), updated_at: new Date() }
+])
+"
+```
 
 ---
 
 ## Common Commands
 
 ```bash
-# Stop the entire application
+# Stop all services
 docker compose down
 
-# Restart a single service after code changes
+# Rebuild and restart a single service after a code change
 docker compose build backend && docker compose up -d backend
+
+# Rebuild the frontend and redeploy nginx
+cd frontend && npm run build && cd ..
+docker compose build nginx && docker compose up -d nginx
 
 # View logs for a specific service
 docker compose logs -f backend
 docker compose logs -f agents
 
-# Check status of all services
+# Check the status of all services
 docker compose ps
 
-# Rebuild everything from scratch (wipes nothing)
-docker compose build --no-cache
-docker compose up -d
+# Rebuild everything from scratch (data is preserved)
+docker compose build --no-cache && docker compose up -d
 
-# Wipe all data volumes (DESTRUCTIVE — deletes all contracts and database)
+# Destroy everything including all data volumes (IRREVERSIBLE)
 docker compose down -v
-```
-
----
-
-## Ingesting Knowledge Base Documents
-
-The ingestion worker loads contract documents into Elasticsearch for AI-powered search.
-
-```bash
-# Ingest a single document
-docker exec clm_worker python ingest.py --file /path/to/contract.pdf --doc-type SLA --customer Acme
-
-# Supported doc types: SLA, NDA, MSA, SOW, employment, vendor, licensing, partnership
-# Supported formats: PDF, DOCX, TXT, CSV, XLSX
-```
-
----
-
-## Seeding Initial Data (Optional)
-
-The backend includes seed scripts to populate sample workflows and templates:
-
-```bash
-# Seed workflow templates
-docker exec clm_backend python seed_templates.py
-
-# Or run directly
-docker exec -it clm_backend python seed.py
-```
-
----
-
-## Setting Up the First Admin User
-
-1. Open `https://localhost` and sign up for an account through Clerk
-2. Connect to MongoDB and update your user's role:
-
-```bash
-docker exec -it mongo mongosh
-use clause_db
-db.users.updateOne({ email: "your-email@example.com" }, { $set: { role: "admin" } })
-exit
 ```
 
 ---
 
 ## Environment Variables Reference
 
-| Variable | Service | Description |
-|---|---|---|
-| `DATABASE_NAME` | backend | MongoDB database name |
-| `CLERK_SECRET_KEY` | backend | Clerk server-side secret key |
-| `CLERK_ISSUER` | backend | Clerk JWT issuer URL |
-| `VITE_CLERK_PUBLISHABLE_KEY` | nginx/frontend | Clerk public key for the browser |
-| `VITE_API_BASE_URL` | nginx/frontend | Base URL the frontend calls (e.g. `https://localhost`) |
-| `SECRET_KEY` | backend | Random secret for internal signing |
-| `GOOGLE_CLIENT_ID` | backend | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | backend | Google OAuth client secret |
-| `GOOGLE_REDIRECT_URI` | backend | OAuth callback URL |
-| `SMTP_EMAIL` | backend | Gmail address for notifications |
-| `SMTP_PASSWORD` | backend | Gmail app password |
-| `ELASTIC_PASSWORD` | elasticsearch / agents / worker | Elasticsearch password |
-| `INDEX_NAME` | agents / worker | Elasticsearch index name |
-| `GEMINI_MODEL` | agents | Primary Gemini model ID |
-| `GEMINI_MODEL_LITE` | agents | Fast/cheap Gemini model ID |
-| `GEMINI_MODEL_HEAVY` | agents | Most capable Gemini model ID |
-| `ANTHROPIC_MODEL` | agents | Claude model ID |
-| `ANTHROPIC_ENABLED` | agents | Set `true` to enable Claude |
-| `OLLAMA_MODEL` | agents | Local Ollama model name |
-| `LOCAL_MODEL_ENABLED` | agents | Set `true` to enable Ollama |
-| `COLLABORA_ADMIN_PASSWORD` | collabora | Admin password for Collabora |
+|              Variable        |            Used by            |               Description                      |
+|------------------------------|-------------------------------|------------------------------------------------|
+| `DATABASE_NAME`              | backend                       | MongoDB database name                          |
+| `CLERK_SECRET_KEY`           | backend                       | Clerk server-side secret key                   |
+| `CLERK_ISSUER`               | backend                       | Clerk JWT issuer URL (no trailing slash)       |
+| `VITE_CLERK_PUBLISHABLE_KEY` | nginx build                   | Clerk publishable key for the browser          |
+| `VITE_API_BASE_URL`          | nginx build                   | API base URL the frontend calls                |
+| `SECRET_KEY`                 | backend                       | Random secret for internal token signing       |
+| `GOOGLE_CLIENT_ID`           | backend                       | Google OAuth 2.0 client ID                     |
+| `GOOGLE_CLIENT_SECRET`       | backend                       | Google OAuth 2.0 client secret                 |
+| `GOOGLE_REDIRECT_URI`        | backend                       | OAuth callback URL                             |
+| `SMTP_EMAIL`                 | backend                       | Gmail address for outbound notifications       |
+| `SMTP_PASSWORD`              | backend                       | Gmail App Password (not your account password) |
+| `ELASTIC_PASSWORD`           | elasticsearch, agents, worker | Elasticsearch password                         |
+| `INDEX_NAME`                 | agents, worker                | Elasticsearch index name                       |
+| `GEMINI_MODEL`               | agents                        | Primary Gemini model ID                        |
+| `GEMINI_MODEL_LITE`          | agents                        | Fast Gemini model ID                           |
+| `GEMINI_MODEL_HEAVY`         | agents                        | Most capable Gemini model ID                   |
+| `GEMINI_RPM`                 | agents                        | Requests-per-minute limit                      |
+| `GEMINI_RPD`                 | agents                        | Requests-per-day limit                         |
+| `ANTHROPIC_MODEL`            | agents                        | Claude model ID                                |
+| `ANTHROPIC_ENABLED`          | agents                        | `true` to enable Claude                        |
+| `OLLAMA_MODEL`               | agents                        | Local Ollama model name                        |
+| `LOCAL_MODEL_ENABLED`        | agents                        | `true` to enable Ollama (requires GPU)         |
+| `COLLABORA_ADMIN_PASSWORD`   | collabora                     | Collabora Online admin password                |
+| `CORS_ORIGINS`               | backend                       | Comma-separated allowed CORS origins           |
 
 ---
 
@@ -364,27 +414,36 @@ exit
 ```bash
 docker compose logs backend --tail=50
 ```
-Usually a missing environment variable or MongoDB connection issue.
+Usually a missing or incorrect environment variable, or MongoDB not yet healthy.
 
-**Elasticsearch fails to start**
+**Elasticsearch fails to start (exit code 137 or mmap error)**
 ```bash
-# Elasticsearch needs enough virtual memory
+# Elasticsearch needs a higher virtual memory limit
 sudo sysctl -w vm.max_map_count=262144
-# Make permanent:
+
+# Make it permanent across reboots
 echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
 ```
 
-**SSL certificate error in browser**
-The self-signed cert triggers a browser warning. Click **Advanced → Proceed to localhost**. This is expected for local development.
+**Browser shows a certificate warning**
+Expected for self-signed certs. Click **Advanced → Proceed to localhost (unsafe)**.
 
-**Clerk auth not working**
-Make sure `CLERK_ISSUER` ends with no trailing slash and matches exactly what's shown in your Clerk Dashboard under **API Keys → Advanced**.
+**Frontend shows a blank page after deployment**
+The `frontend/dist/` folder must exist before running `docker compose build`. Run `npm install && npm run build` inside `frontend/` first.
 
-**Frontend shows blank page**
-The `frontend/dist/` folder must exist before running `docker compose build`. Run `npm install && npm run build` inside the `frontend/` directory first.
+**Clerk auth not working / 401 errors**
+- Confirm `CLERK_ISSUER` has no trailing slash and matches your Clerk Dashboard exactly.
+- Confirm `VITE_CLERK_PUBLISHABLE_KEY` starts with `pk_` and is the key for the correct Clerk app.
+- After changing these values, rebuild nginx: `docker compose build nginx && docker compose up -d nginx`
+
+**Admin panel shows "Admin access required"**
+Your user's role in MongoDB is not yet `admin`. Follow the [First Admin User](#first-admin-user) steps and hard-refresh your browser.
+
+**Ollama GPU not detected**
+The `ollama` service requires an NVIDIA GPU and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html). If you don't have a GPU, set `LOCAL_MODEL_ENABLED=false` — the platform will use Gemini and Claude instead.
 
 ---
 
 ## License
 
-This project was developed as a university final-year project.
+Developed as a university final-year project.
