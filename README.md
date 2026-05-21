@@ -444,6 +444,4 @@ The `ollama` service requires an NVIDIA GPU and the [NVIDIA Container Toolkit](h
 
 ---
 
-## License
 
-Developed as a university final-year project.
